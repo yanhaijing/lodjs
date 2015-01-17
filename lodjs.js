@@ -196,9 +196,13 @@
         //执行回调函数
         callback(moduleMap[modName].exports);
 
-        //模块定义完毕 执行load函数
+        //执行complete队列
+        execComplete(modName);
+    }
+    function execComplete(modName) {
+        //模块定义完毕 执行load函数,当加载失败时，会不存在module
         for (var i = 0; i < modMap[modName].oncomplete.length; i++) {
-            modMap[modName].oncomplete[i](moduleMap[modName].exports);
+            modMap[modName].oncomplete[i](moduleMap[modName] && moduleMap[modName].exports);
         }
         //释放内存
         modMap[modName].oncomplete = [];
@@ -241,6 +245,7 @@
             }, function () {
                 modMap[modName].status === 'error';
                 callback();
+                execComplete(modName);//加载失败执行队列
             });
             return 0;
         }
