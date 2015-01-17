@@ -1,4 +1,4 @@
-#define.js
+#lodjs
 JavaScript模块加载器，基于AMD。
 
 ##相关链接
@@ -10,3 +10,5 @@ JavaScript模块加载器，基于AMD。
 - [seajs](http://seajs.org/docs/)
 - [curl.js](https://github.com/cujojs/curl)
 - [modJS](https://github.com/fex-team/mod)
+- [loader.js](https://github.com/ember-cli/loader.js)
+- [define.js](https://github.com/fixjs/define.js)

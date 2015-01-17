@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Document</title>
+</head>
+<body>
+    <script src="../lodjs.js"></script>
+    <script>
+        lodjs.config({baseUrl: 'js/'});
+        define('test', ['test2'], function(test2) {
+            console.log('test exec');
+            console.log(test2);
+            return 123;
+        });
+
+        console.log(lodjs);
+        lodjs.use(['test'], function(test) {
+            console.log(test);
+        });
+    </script>
+</body>
+</html>
