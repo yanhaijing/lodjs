@@ -182,6 +182,7 @@
                 return 1;
             }, function () {
                 modMap[modName].status === 'error';
+                callback();
             });
             return 0;
         }
