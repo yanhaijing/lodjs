@@ -1,4 +1,4 @@
-define(function(test9) {
+define(function() {
     console.log('test9 exec');
     return 'test9';
 });

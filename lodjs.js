@@ -175,11 +175,34 @@
         modMap[modName].deps = deps;
         modMap[modName].callback = callback;
         modMap[modName].status = 'loaded';
+        modMap[modName].oncomplete = modMap[modName].oncomplete || [];
         moduleMap[modName] = {};
 
         return 0;
     };
     define.amd = {};
+    function execMod(modName, callback, params) {
+        //判断定义的是函数还是非函数
+        if (!params) {
+            moduleMap[modName].exports = modMap[modName].callback;
+        } else {
+            //commonjs
+            var exp = modMap[modName].callback.apply(null, params);
+            //amd和返回值的commonjs
+            if (exp) {
+                moduleMap[modName].exports = exp;
+            }
+        }
+        //执行回调函数
+        callback(moduleMap[modName].exports);
+
+        //模块定义完毕 执行load函数
+        for (var i = 0; i < modMap[modName].oncomplete.length; i++) {
+            modMap[modName].oncomplete[i](moduleMap[modName].exports);
+        }
+        //释放内存
+        modMap[modName].oncomplete = [];
+    }
     function loadMod(id, callback, option) {
         //commonjs
         if(id === 'require') {
@@ -201,40 +224,18 @@
         if (!modMap[modName]) {
             modMap[modName] = {
                 status: 'loading',
-                onload: [callback]
+                oncomplete: [callback]
             };
             loadjs(modName, function () {
                 //如果define的不是函数
                 if (!isFn(modMap[modName].callback)) {
-                    moduleMap[modName].exports = modMap[modName].callback;
-                    callback(moduleMap[modName].exports);
-                    //模块定义完毕 执行load函数
-                    for (var i = 0; i < modMap[modName].onload.length; i++) {
-                        modMap[modName].onload[i](moduleMap[modName].exports);
-                    }
+                    execMod(modName, callback);
                     return 0;
-                } 
+                }
 
                 //define的是函数
                 use(modMap[modName].deps, function () {                    
-                    //commonjs
-                    if (modMap[modName].deps[0] === 'require') {
-                        var exp = modMap[modName].callback.apply(null, arguments);
-                        //也支持返回值
-                        if (exp) {
-                            moduleMap[modName].exports = exp;
-                        }
-                    } else {
-                        //amd
-                        moduleMap[modName].exports = modMap[modName].callback.apply(null, arguments);
-                    }
-
-                    callback(moduleMap[modName].exports);
-
-                    //模块定义完毕 执行load函数
-                    for (var i = 0; i < modMap[modName].onload.length; i++) {
-                        modMap[modName].onload[i](moduleMap[modName].exports);
-                    }
+                    execMod(modName, callback, slice.call(arguments, 0));
                 }, {baseUrl: modName});
                 return 1;
             }, function () {
@@ -251,7 +252,7 @@
         }
         //正在加载
         if (modMap[modName].status === 'loading') {
-            modMap[modName].onload.push(callback);
+            modMap[modName].oncomplete.push(callback);
             return 1;
         }
 
@@ -260,26 +261,13 @@
         if (!moduleMap[modName].exports) {
             //如果define的不是函数
             if (!isFn(modMap[modName].callback)) {
-                moduleMap[modName].exports = modMap[modName].callback;
-                callback(moduleMap[modName].exports);
+                execMod(modName, callback);
                 return 2;
             } 
 
             //define的是函数
             use(modMap[modName].deps, function () {
-                //commonjs
-                if (modMap[modName].deps[0] === 'require') {
-                    var exp = modMap[modName].callback.apply(null, arguments);
-                    //也支持返回值
-                    if (exp) {
-                        moduleMap[modName].exports = exp;
-                    }
-                } else {
-                    //amd
-                    moduleMap[modName].exports = modMap[modName].callback.apply(null, arguments);
-                }
-
-                callback(moduleMap[modName].exports);
+                execMod(modName, callback, slice.call(arguments, 0));
             }, {baseUrl: modName});
             return 3;
         }
