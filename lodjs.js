@@ -2,6 +2,7 @@
     'use strict';
     var modMap = [];
     var exportsMap = [];
+    var moduleMap = [];
     var toString = {}.toString;
     var slice = [].slice;
     var baseSrc = document.currentScript.src;
@@ -9,6 +10,8 @@
     var docUrl = docSrc.slice(0, docSrc.lastIndexOf('/') + 1);
     var baseUrl = baseSrc && baseSrc.slice(0, baseSrc.lastIndexOf('/') + 1) || docUrl;
     var gid = 0;
+    var commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
+    var cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g;
     var o = {
         baseUrl: baseUrl
     };
@@ -127,6 +130,13 @@
         console.log(id + ' idurl:' + url + '.js');
         return url + '.js';
     }
+    function getCurSrc() {
+        return document.currentScript && document.currentScript.src || '';
+    }
+    function require(id) {
+        var url = getDepUrl(id, getCurSrc());
+        return moduleMap[url].exports;
+    }
     var define = function (name, deps, callback) {
         //省略模块名
         if (typeof name !== 'string') {
@@ -141,17 +151,51 @@
             deps = [];
         }
 
+        //支持commonjs
+        if (deps.length === 0 && isFn(callback) && callback.length) {
+            callback
+                .toString()
+                .replace(commentRegExp, '')
+                .replace(cjsRequireRegExp, function (match, dep) {
+                    deps.push(dep);
+                });
+            var arr = ['require'];
+            if (callback.length > 1) {
+                arr.push('exports');
+            }
+            if (callback.length > 2) {
+                arr.push('module');
+            }
+            deps = arr.concat(deps);
+        }
+
         var modName = getIdUrl(name);
 
         modMap[modName] = modMap[modName] || {};
         modMap[modName].deps = deps;
         modMap[modName].callback = callback;
         modMap[modName].status = 'loaded';
+        moduleMap[modName] = {};
 
         return 0;
     };
     define.amd = {};
     function loadMod(id, callback, option) {
+        //commonjs
+        if(id === 'require') {
+            callback(require);
+            return -1;
+        }
+        if (id === 'exports') {
+            var exports = moduleMap[option.baseUrl].exports = {};
+            callback(exports);
+            return -2;
+        }
+        if (id === 'module') {
+            callback(moduleMap[option.baseUrl]);
+            return -3;
+        }
+
         var modName = getDepUrl(id, option.baseUrl);
         //未加载
         if (!modMap[modName]) {
@@ -162,21 +206,34 @@
             loadjs(modName, function () {
                 //如果define的不是函数
                 if (!isFn(modMap[modName].callback)) {
-                    exportsMap[modName] = modMap[modName].callback;
-                    callback(exportsMap[modName]);
+                    moduleMap[modName].exports = modMap[modName].callback;
+                    callback(moduleMap[modName].exports);
                     //模块定义完毕 执行load函数
                     for (var i = 0; i < modMap[modName].onload.length; i++) {
-                        modMap[modName].onload[i](exportsMap[modName]);
+                        modMap[modName].onload[i](moduleMap[modName].exports);
                     }
                     return 0;
                 } 
 
                 //define的是函数
-                use(modMap[modName].deps, function () {
-                    exportsMap[modName] = modMap[modName].callback.apply(null, arguments);
+                use(modMap[modName].deps, function () {                    
+                    //commonjs
+                    if (modMap[modName].deps[0] === 'require') {
+                        var exp = modMap[modName].callback.apply(null, arguments);
+                        //也支持返回值
+                        if (exp) {
+                            moduleMap[modName].exports = exp;
+                        }
+                    } else {
+                        //amd
+                        moduleMap[modName].exports = modMap[modName].callback.apply(null, arguments);
+                    }
+
+                    callback(moduleMap[modName].exports);
+
                     //模块定义完毕 执行load函数
                     for (var i = 0; i < modMap[modName].onload.length; i++) {
-                        modMap[modName].onload[i](exportsMap[modName]);
+                        modMap[modName].onload[i](moduleMap[modName].exports);
                     }
                 }, {baseUrl: modName});
                 return 1;
@@ -200,24 +257,35 @@
 
         //加载完成
         //尚未执行完成
-        if (!exportsMap[modName]) {
+        if (!moduleMap[modName].exports) {
             //如果define的不是函数
             if (!isFn(modMap[modName].callback)) {
-                exportsMap[modName] = modMap[modName].callback;
-                callback(exportsMap[modName]);
+                moduleMap[modName].exports = modMap[modName].callback;
+                callback(moduleMap[modName].exports);
                 return 2;
             } 
 
             //define的是函数
             use(modMap[modName].deps, function () {
-                exportsMap[modName] = modMap[modName].callback.apply(null, arguments);
-                callback(exportsMap[modName]);
+                //commonjs
+                if (modMap[modName].deps[0] === 'require') {
+                    var exp = modMap[modName].callback.apply(null, arguments);
+                    //也支持返回值
+                    if (exp) {
+                        moduleMap[modName].exports = exp;
+                    }
+                } else {
+                    //amd
+                    moduleMap[modName].exports = modMap[modName].callback.apply(null, arguments);
+                }
+
+                callback(moduleMap[modName].exports);
             }, {baseUrl: modName});
             return 3;
         }
 
         //已经执行过
-        callback(exportsMap[modName]);
+        callback(moduleMap[modName].exports);
         return 4;
     }
     function use(deps, callback, option) {
