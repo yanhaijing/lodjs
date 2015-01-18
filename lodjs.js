@@ -181,6 +181,10 @@
         return url.search(reg) !== -1 ? url : url + '.' + suffix;
     }
     function getDepUrl(id, url) {
+        //若以请求的id以 /开头或.js结尾则从docUrl加载
+        if (id.search(/^\/|\.js$/) !== -1) {
+            url = docUrl;
+        }
         url = getUrl(id, url || o.baseUrl);
         return fixSuffix(url, 'js');
     }
