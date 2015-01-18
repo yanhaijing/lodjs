@@ -8,11 +8,8 @@
 
     var doc = document;
     var head = doc.head || doc.getElementsByTagName("head")[0] || doc.documentElement;
-
-    var baseSrc = getCurSrc();
-    var docSrc = location.href.slice(0, location.href.indexOf('?'));
-    var docUrl = docSrc.slice(0, docSrc.lastIndexOf('/') + 1);
-    var baseUrl = baseSrc && baseSrc.slice(0, baseSrc.lastIndexOf('/') + 1) || docUrl;
+    var docUrl = location.href.split('?')[0];//去除问号之后部分
+    var baseUrl = getCurSrc() || docUrl;
 
     var gid = 0;
     var commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
@@ -144,16 +141,27 @@
         if (path.search(/^(http:\/\/|https:\/\/|\/\/)/) !== -1) {
             return path;
         }
+
+        var rootUrl;
+        //修复url
+        if (rootUrl = url.match(/[^\/]*\/\/[^\/]*\//)) {
+            //http://yanhaijing.com/abc
+            url = url.slice(0, url.lastIndexOf('/') + 1);
+            rootUrl = rootUrl[0];
+        } else {
+            //http://yanhaijing.com
+            rootUrl = url = url + '/';
+        }
+
         // /开头
         if (path.search(/^\//) !== -1) {
-            return (url.match(/[^\/]*\/\/[^\/]*\//)[0] || url + '/') + path;
+            return rootUrl + path;
         }
 
         // ../开头
         if (path.search(/^\.\.\//) !== -1) {
-            url = url.slice(0, url.lastIndexOf('/') + 1);
             while(path.search(/^\.\.\//) !== -1) {
-                if (url.lastIndexOf('/') !== -1) {
+                if (url.lastIndexOf('/', url.length - 2) !== -1) {
                     path = path.slice(3);
                     url = url.slice(0, url.lastIndexOf('/', url.length - 2) + 1);
                 } else {
@@ -164,28 +172,28 @@
             return url + path;
         }
         // ./
-        if (path.search(/^\.\//) !== -1) {
-            path = path.slice(2);
-        }
+        path = path.search(/^\.\//) !== -1 ? path.slice(2) : path;
 
-        return url.slice(0, url.lastIndexOf('/') + 1) + path;
+        return url + path;
+    }
+    function fixSuffix(url, suffix) {
+        var reg = new RegExp('\\.' + suffix + '$', 'i');
+        return url.search(reg) !== -1 ? url : url + '.' + suffix;
     }
     function getDepUrl(id, url) {
         url = getUrl(id, url || o.baseUrl);
-        return url.search(/\.js$/) !== -1 ? url : url + '.js';
+        return fixSuffix(url, 'js');
     }
     function getIdUrl(id){
         //没有id的情况
         if (!id) {
             return getCurSrc();
         }
-        //id不能为相对路径
-        if (id.search(/^\./) !== -1 || id.search(/\.js$/) !== -1) {
-            throw new Error('lodjs define id' + id + 'must absolute and no .js');
+        //id不能为相对路径,amd规定此处也不能带后缀，此处放宽限制。
+        if (id.search(/^\./) !== -1) {
+            throw new Error('lodjs define id' + id + 'must absolute');
         }
-
-        var url = getUrl(id, o.baseUrl);
-        return url + '.js';
+        return fixSuffix(getUrl(id, o.baseUrl), 'js');
     }
     function require(id) {
         var url = getDepUrl(id, getCurSrc());
@@ -298,8 +306,8 @@
         return extendDeep(o);
     }
     function use(deps, callback, option) {
-        if (!deps || !callback) {
-            throw new Error('lodjs.use arguments error');
+        if (arguments.length < 2) {
+            throw new Error('lodjs.use arguments miss');
             return 0;
         }
 
@@ -308,15 +316,15 @@
         }
 
         if (!isArr(deps) || !isFn(callback)) {
-            throw new Error('lodjs.use arguments error');
+            throw new Error('lodjs.use arguments type error');
             return 1;
         }
         //默认为当前脚本的路径或baseurl
         if (!isObj(option)) {
-            option = {
-                baseUrl: getCurSrc() || o.baseUrl
-            };
+            option = {};
         }
+        option.baseUrl = option.baseUrl || getCurSrc() || o.baseUrl;
+
         if (deps.length === 0) {
             callback();
             return 2;
