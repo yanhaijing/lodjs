@@ -1,32 +1,62 @@
 ;(function (root) {
     'use strict';
     var modMap = [];
-    var exportsMap = [];
     var moduleMap = [];
+
     var toString = {}.toString;
     var slice = [].slice;
-    var baseSrc = document.currentScript.src;
+
+    var doc = document;
+    var head = doc.head || doc.getElementsByTagName("head")[0] || doc.documentElement;
+
+    var baseSrc = getCurSrc();
     var docSrc = location.href.slice(0, location.href.indexOf('?'));
     var docUrl = docSrc.slice(0, docSrc.lastIndexOf('/') + 1);
     var baseUrl = baseSrc && baseSrc.slice(0, baseSrc.lastIndexOf('/') + 1) || docUrl;
+
     var gid = 0;
     var commentRegExp = /(\/\*([\s\S]*?)\*\/|([^:]|^)\/\/(.*)$)/mg;
     var cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g;
+    var interactiveScript = null;
+    var currentlyAddingScript = null;
+    
     var o = {
         baseUrl: baseUrl
     };
-    console.log('baseUrl:' +baseUrl);
+
     function getGid() {
         return gid++;
     }
+    function getType(x) {
+        if(x === null){
+            return 'null';
+        }
+
+        var t= typeof x;
+
+        if(t !== 'object'){
+            return t;
+        }
+
+        var c = toString.call(x).slice(8, -1).toLowerCase();
+        if(c !== 'object'){
+            return c;
+        }
+
+        if(x.constructor==Object){
+            return c;
+        }
+
+        return 'unkonw';
+    }
     function isArr(arr) {
-        return toString.call(arr) === '[object Array]';
+        return Array.isArray ? Array.isArray(arr) : getType(arr) === 'array';
     }
     function isObj(obj) {
-        return toString.call(obj) === '[object Object]';
+        return getType(obj) === 'object';
     }
     function isFn(fn) {
-        return toString.call(fn) === '[object Function]';
+        return getType(fn) === 'function';
     }
     function extendDeep() {
         var target = arguments[0] || {};
@@ -65,20 +95,49 @@
         return target;
     }
     function loadjs(src, success, error) {
-        var js = document.createElement('script');
-        js.src = src;
-        js.id = 'lodjs-' + getGid();
-        js.onload = success;
-        js.onerror = error;
-        (document.getElementsByTagName('head')[0] || document.body).appendChild(js);
+        var node = doc.createElement('script');
+        node.src = src;
+        node.id = 'lodjs-js-' + getGid();
+
+        if ('onload' in node) {
+            node.onload = success;
+            node.onerror = error;
+        } else {
+          node.onreadystatechange = function() {
+            if (/loaded|complete/.test(node.readyState)) {
+                success();
+            }
+          }
+        }
+        currentlyAddingScript = node;
+        head.appendChild(node);
+        currentlyAddingScript = null;
     }
-    function loadcss(src, success, error) {
-        var css = document.createElement('link');
-        css.rel = "stylesheet";
-        css.href = src;
-        css.onload = success;
-        css.onerror = error;
-        (document.getElementsByTagName('head')[0] || document.body).appendChild(css);
+    function getCurSrc() {
+        if(doc.currentScript){
+            return doc.currentScript.src;
+        }
+        if (currentlyAddingScript) {
+            return currentlyAddingScript.src;
+        }
+        // For IE6-9 browsers, the script onload event may not fire right
+        // after the script is evaluated. Kris Zyp found that it
+        // could query the script nodes and the one that is in "interactive"
+        // mode indicates the current script
+        // ref: http://goo.gl/JHfFW
+        if (interactiveScript && interactiveScript.readyState === "interactive") {
+            return interactiveScript.src;
+        }
+
+        var scripts = head.getElementsByTagName("script");
+        for (var i = scripts.length - 1; i >= 0; i--) {
+            var script = scripts[i];
+            if (script.readyState === "interactive") {
+                interactiveScript = script;
+                return interactiveScript.src;
+            }
+        }
+        return null;
     }
     function getUrl(path, url) {
         //绝对网址
@@ -98,7 +157,7 @@
                     path = path.slice(3);
                     url = url.slice(0, url.lastIndexOf('/', url.length - 2) + 1);
                 } else {
-                    throw new Error('loadjs geturl error, cannot find path in url');
+                    throw new Error('lodjs geturl error, cannot find path in url');
                 }
             }
 
@@ -113,74 +172,25 @@
     }
     function getDepUrl(id, url) {
         url = getUrl(id, url || o.baseUrl);
-        console.log('getdepurl: ' + url + '.js');
         return url.search(/\.js$/) !== -1 ? url : url + '.js';
     }
     function getIdUrl(id){
         //没有id的情况
         if (!id) {
-            return document.currentScript.src;
+            return getCurSrc();
         }
         //id不能为相对路径
         if (id.search(/^\./) !== -1 || id.search(/\.js$/) !== -1) {
-            throw new Error('loadjs define id' + id + 'must absolute and no .js');
+            throw new Error('lodjs define id' + id + 'must absolute and no .js');
         }
 
         var url = getUrl(id, o.baseUrl);
-        console.log(id + ' idurl:' + url + '.js');
         return url + '.js';
-    }
-    function getCurSrc() {
-        return document.currentScript && document.currentScript.src || '';
     }
     function require(id) {
         var url = getDepUrl(id, getCurSrc());
-        return moduleMap[url].exports;
+        return moduleMap[url] && moduleMap[url].exports;
     }
-    var define = function (name, deps, callback) {
-        //省略模块名
-        if (typeof name !== 'string') {
-            callback = deps;
-            deps = name;
-            name = null;
-        }
-
-        //无依赖
-        if (!isArr(deps)) {
-            callback = deps;
-            deps = [];
-        }
-
-        //支持commonjs
-        if (deps.length === 0 && isFn(callback) && callback.length) {
-            callback
-                .toString()
-                .replace(commentRegExp, '')
-                .replace(cjsRequireRegExp, function (match, dep) {
-                    deps.push(dep);
-                });
-            var arr = ['require'];
-            if (callback.length > 1) {
-                arr.push('exports');
-            }
-            if (callback.length > 2) {
-                arr.push('module');
-            }
-            deps = arr.concat(deps);
-        }
-
-        var modName = getIdUrl(name);
-
-        modMap[modName] = modMap[modName] || {};
-        modMap[modName].deps = deps;
-        modMap[modName].callback = callback;
-        modMap[modName].status = 'loaded';
-        modMap[modName].oncomplete = modMap[modName].oncomplete || [];
-        moduleMap[modName] = {};
-
-        return 0;
-    };
-    define.amd = {};
     function execMod(modName, callback, params) {
         //判断定义的是函数还是非函数
         if (!params) {
@@ -222,7 +232,6 @@
             callback(moduleMap[option.baseUrl]);
             return -3;
         }
-
         var modName = getDepUrl(id, option.baseUrl);
         //未加载
         if (!modMap[modName]) {
@@ -281,6 +290,13 @@
         callback(moduleMap[modName].exports);
         return 4;
     }
+    function config(option) {
+        if (option.baseUrl) {
+            option.baseUrl = getUrl(option.baseUrl, docUrl);
+        }
+        o = extendDeep(o, option);
+        return extendDeep(o);
+    }
     function use(deps, callback, option) {
         if (!deps || !callback) {
             throw new Error('lodjs.use arguments error');
@@ -295,9 +311,10 @@
             throw new Error('lodjs.use arguments error');
             return 1;
         }
+        //默认为当前脚本的路径或baseurl
         if (!isObj(option)) {
             option = {
-                baseUrl: o.baseUrl
+                baseUrl: getCurSrc() || o.baseUrl
             };
         }
         if (deps.length === 0) {
@@ -320,20 +337,58 @@
 
         return 3;
     }
+    function define(name, deps, callback) {
+        //省略模块名
+        if (typeof name !== 'string') {
+            callback = deps;
+            deps = name;
+            name = null;
+        }
+
+        //无依赖
+        if (!isArr(deps)) {
+            callback = deps;
+            deps = [];
+        }
+
+        //支持commonjs
+        if (deps.length === 0 && isFn(callback) && callback.length) {
+            callback
+                .toString()
+                .replace(commentRegExp, '')
+                .replace(cjsRequireRegExp, function (match, dep) {
+                    deps.push(dep);
+                });
+            var arr = ['require'];
+            if (callback.length > 1) {
+                arr.push('exports');
+            }
+            if (callback.length > 2) {
+                arr.push('module');
+            }
+            deps = arr.concat(deps);
+        }
+
+        var modName = getIdUrl(name);
+
+        modMap[modName] = modMap[modName] || {};
+        modMap[modName].deps = deps;
+        modMap[modName].callback = callback;
+        modMap[modName].status = 'loaded';
+        modMap[modName].oncomplete = modMap[modName].oncomplete || [];
+        moduleMap[modName] = {};
+
+        return 0;
+    }
+
+    define.amd = {};
     var lodjs = {
         version: '0.1.0',
         use: use,
         loadjs: loadjs,
-        loadcss: loadcss
+        config: config
     };
-    lodjs.config = function (option) {
-        if (option.baseUrl) {
-            option.baseUrl = getUrl(option.baseUrl, docUrl);
-        }
-        o = extendDeep(o, option);
-        console.log(o);
-        return extendDeep(o);
-    };
+
     root.define = define;
     root.lodjs = lodjs;
 }(window));
