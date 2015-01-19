@@ -8,6 +8,7 @@
 
     var doc = document;
     var head = doc.head || doc.getElementsByTagName("head")[0] || doc.documentElement;
+    var docCharset = doc.charset;
     var docUrl = location.href.split('?')[0];//去除问号之后部分
     var baseUrl = getCurSrc() || docUrl;
 
@@ -89,11 +90,15 @@
 
         return target;
     }
-    function loadjs(src, success, error) {
+    function loadjs(src, success, error, option) {
+        if (o.urlArgs) {
+            src += o.urlArgs;
+        }
+        option = option || {};
         var node = doc.createElement('script');
         node.src = src;
         node.id = 'lodjs-js-' + getGid();
-
+        node.charset = option.charset || docCharset;
         if ('onload' in node) {
             node.onload = success;
             node.onerror = error;
