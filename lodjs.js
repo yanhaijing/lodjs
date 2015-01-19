@@ -17,9 +17,7 @@
     var interactiveScript = null;
     var currentlyAddingScript = null;
     
-    var o = {
-        baseUrl: baseUrl
-    };
+    var o = {};
 
     function getGid() {
         return gid++;
@@ -136,10 +134,16 @@
         }
         return null;
     }
+    function isUrl(url) {
+        return url.search(/^(http:\/\/|https:\/\/|\/\/)/) !== -1;
+    }
+    function fixUrl(url) {
+        return url.replace(/([^:])\/+/g, '$1/');
+    }
     function getUrl(path, url) {
         //绝对网址
-        if (path.search(/^(http:\/\/|https:\/\/|\/\/)/) !== -1) {
-            return path;
+        if (isUrl(path)) {
+            return fixUrl(path);
         }
 
         var rootUrl;
@@ -155,7 +159,7 @@
 
         // /开头
         if (path.search(/^\//) !== -1) {
-            return rootUrl + path;
+            return fixUrl(rootUrl + path);
         }
 
         // ../开头
@@ -169,24 +173,28 @@
                 }
             }
 
-            return url + path;
+            return fixUrl(url + path);
         }
         // ./
         path = path.search(/^\.\//) !== -1 ? path.slice(2) : path;
 
-        return url + path;
+        return fixUrl(url + path);
     }
     function fixSuffix(url, suffix) {
         var reg = new RegExp('\\.' + suffix + '$', 'i');
         return url.search(reg) !== -1 ? url : url + '.' + suffix;
     }
-    function getDepUrl(id, url) {
-        //若以请求的id以 /开头或.js结尾则从docUrl加载
-        if (id.search(/^\/|\.js$/) !== -1) {
-            url = docUrl;
+    function replacePath(id) {
+        var ids = id.split('/');
+        // id中不包含路径 或 查找路径失败
+        if (ids.length < 2 || !(ids[0] in o.path)) {
+            return id;
         }
-        url = getUrl(id, url || o.baseUrl);
-        return fixSuffix(url, 'js');
+        ids[0] = o.path[ids[0]];
+        return ids.join('/');
+    }
+    function getDepUrl(id, url) {
+        return fixSuffix(getUrl(replacePath(id), url || o.baseUrl), 'js');
     }
     function getIdUrl(id){
         //没有id的情况
@@ -302,12 +310,37 @@
         callback(moduleMap[modName].exports);
         return 4;
     }
+    function fixPath(path) {
+        //path是网址
+        if (isUrl(path)) {
+            return getUrl('./', path).slice(0, -1);
+        }
+        return path;
+    }
     function config(option) {
+        if (!isObj(option)) {
+            return extendDeep({}, o);
+        }
+
+        //处理baseUrl
         if (option.baseUrl) {
             option.baseUrl = getUrl(option.baseUrl, docUrl);
+
+            //重置baseUrl时需重置path中的baseUrl
+            option.path = option.path || {};
+            option.path.baseUrl = option.baseUrl;
         }
+
+        //处理path
+        if (isObj(option.path)) {
+            for(var key in option.path) {
+                option.path[key] = fixPath(option.path[key]);
+            }
+        }
+
         o = extendDeep(o, option);
-        return extendDeep(o);
+
+        return extendDeep({}, o);
     }
     function use(deps, callback, option) {
         if (arguments.length < 2) {
@@ -393,14 +426,19 @@
         return 0;
     }
 
-    define.amd = {};
+    define.amd = {from: 'lodjs'};
     var lodjs = {
         version: '0.1.0',
         use: use,
         loadjs: loadjs,
-        config: config
+        config: config,
+        define: define
     };
 
+    lodjs.config({
+        baseUrl: baseUrl,
+        path: {docUrl: docUrl}
+    });
     root.define = define;
     root.lodjs = lodjs;
 }(window));

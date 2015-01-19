@@ -1,4 +1,4 @@
-#lodjs
+#lodJS
 JavaScript模块加载器，基于AMD。
 
 ##相关链接
