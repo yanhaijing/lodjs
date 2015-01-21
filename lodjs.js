@@ -18,7 +18,7 @@
     var interactiveScript = null;
     var currentlyAddingScript = null;
     
-    var o = {};
+    var o = {path: {}};
 
     function getGid() {
         return gid++;
@@ -216,6 +216,36 @@
         var url = getDepUrl(id, getCurSrc());
         return moduleMap[url] && moduleMap[url].exports;
     }
+    function fixPath(path) {
+        //path是网址
+        if (isUrl(path)) {
+            return getUrl('./', path).slice(0, -1);
+        }
+        return path;
+    }
+    function config(option) {
+        if (!isObj(option)) {
+            return extendDeep({}, o);
+        }
+
+        //处理baseUrl
+        if (option.baseUrl) {
+            option.baseUrl = getUrl(option.baseUrl, docUrl);
+        }
+
+        //处理path
+        if (isObj(option.path)) {
+            for(var key in option.path) {
+                option.path[key] = fixPath(option.path[key]);
+            }
+        }
+        o = extendDeep(o, option);
+
+        //fix keywords
+        o.path.BASEURL = fixPath(option.baseUrl || o.baseUrl);
+        o.path.DOCURL = fixPath(docUrl);
+        return extendDeep({}, o);
+    }
     function execMod(modName, callback, params) {
         //判断定义的是函数还是非函数
         if (!params) {
@@ -315,38 +345,6 @@
         callback(moduleMap[modName].exports);
         return 4;
     }
-    function fixPath(path) {
-        //path是网址
-        if (isUrl(path)) {
-            return getUrl('./', path).slice(0, -1);
-        }
-        return path;
-    }
-    function config(option) {
-        if (!isObj(option)) {
-            return extendDeep({}, o);
-        }
-
-        //处理baseUrl
-        if (option.baseUrl) {
-            option.baseUrl = getUrl(option.baseUrl, docUrl);
-
-            //重置baseUrl时需重置path中的baseUrl
-            option.path = option.path || {};
-            option.path.baseUrl = option.baseUrl;
-        }
-
-        //处理path
-        if (isObj(option.path)) {
-            for(var key in option.path) {
-                option.path[key] = fixPath(option.path[key]);
-            }
-        }
-
-        o = extendDeep(o, option);
-
-        return extendDeep({}, o);
-    }
     function use(deps, callback, option) {
         if (arguments.length < 2) {
             throw new Error('lodjs.use arguments miss');
@@ -437,13 +435,11 @@
         use: use,
         loadjs: loadjs,
         config: config,
-        define: define
+        define: define,
+        require: require
     };
 
-    lodjs.config({
-        baseUrl: baseUrl,
-        path: {docUrl: docUrl}
-    });
+    lodjs.config({baseUrl: baseUrl});
     root.define = define;
     root.lodjs = lodjs;
 }(window));
