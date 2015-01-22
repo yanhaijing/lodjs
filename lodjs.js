@@ -17,8 +17,9 @@
     var cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g;
     var interactiveScript = null;
     var currentlyAddingScript = null;
+    var t = (new Date).getTime();
     
-    var o = {path: {}};
+    var o = {};
 
     function getGid() {
         return gid++;
@@ -91,14 +92,18 @@
         return target;
     }
     function loadjs(src, success, error, option) {
-        if (o.urlArgs) {
-            src += o.urlArgs;
+        var d = extendDeep({
+            charset: docCharset,
+            cache: o.cache
+        }, option);
+
+        if (d.cache) {
+            src += '?t=' + t;
         }
-        option = option || {};
         var node = doc.createElement('script');
         node.src = src;
         node.id = 'lodjs-js-' + getGid();
-        node.charset = option.charset || docCharset;
+        node.charset = d.charset;
         if ('onload' in node) {
             node.onload = success;
             node.onerror = error;
@@ -292,7 +297,7 @@
         if (!modMap[modName]) {
             modMap[modName] = {
                 status: 'loading',
-                oncomplete: [callback]
+                oncomplete: []
             };
             loadjs(modName, function () {
                 //如果define的不是函数
@@ -417,7 +422,7 @@
             deps = arr.concat(deps);
         }
 
-        var modName = getIdUrl(name);
+        var modName = getIdUrl(name).split('?')[0];//fix 后缀
 
         modMap[modName] = modMap[modName] || {};
         modMap[modName].deps = deps;
@@ -430,16 +435,24 @@
     }
 
     define.amd = {from: 'lodjs'};
+    function debug() {
+        console.log(modMap, moduleMap);
+    }
     var lodjs = {
         version: '0.1.0',
         use: use,
         loadjs: loadjs,
         config: config,
         define: define,
-        require: require
+        require: require,
+        debug: debug
     };
 
-    lodjs.config({baseUrl: baseUrl});
+    lodjs.config({
+        baseUrl: baseUrl,
+        path: {},
+        cache: false
+    });
     root.define = define;
     root.lodjs = lodjs;
 }(window));
