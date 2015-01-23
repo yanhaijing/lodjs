@@ -88,6 +88,7 @@ JavaScript模块加载器，基于[AMD](https://github.com/amdjs/amdjs-api/blob/
 - [requirejs中文网](http://requirejs.cn/)
 - [curl.js](https://github.com/cujojs/curl)
 - [modJS](https://github.com/fex-team/mod)
+- [ESL](https://github.com/ecomfe/esl)
 - [loader.js](https://github.com/ember-cli/loader.js)
 - [define.js](https://github.com/fixjs/define.js)
 - [CMD规范](https://github.com/cmdjs/specification/blob/master/draft/module.md)
