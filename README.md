@@ -26,7 +26,7 @@ JavaScript模块加载器，基于[AMD](https://github.com/amdjs/amdjs-api/blob/
 
 ###传统用法
 	
-	<script src="template.js"></script>
+	<script src="lodjs.js"></script>
 
 ###Bower
 
