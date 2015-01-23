@@ -63,7 +63,7 @@ JavaScript模块加载器，基于[AMD](https://github.com/amdjs/amdjs-api/blob/
 
 ###发布Bower
 	
-	$ bower register template.js git://github.com/yanhaijing/template.js.git
+	$ bower register lodjs git://github.com/yanhaijing/lodjs.git
 
 ##报告问题
 
@@ -82,8 +82,15 @@ JavaScript模块加载器，基于[AMD](https://github.com/amdjs/amdjs-api/blob/
 [更新日志](CHANGELOG.md)
 
 ##相关链接
+
+###AMD规范
 - [AMD规范](https://github.com/amdjs/amdjs-api/blob/master/AMD.md)
 - [AMD规范(中文版)](https://github.com/amdjs/amdjs-api/wiki/AMD-(%E4%B8%AD%E6%96%87%E7%89%88))
+- [AMD Require](https://github.com/amdjs/amdjs-api/wiki/require)
+- [AMD Common-Config](https://github.com/amdjs/amdjs-api/wiki/Common-Config)
+- [AMD Loader-Plugins](https://github.com/amdjs/amdjs-api/wiki/Loader-Plugins)
+
+###AMD实现
 - [requirejs官网](http://requirejs.org/)
 - [requirejs中文网](http://requirejs.cn/)
 - [curl.js](https://github.com/cujojs/curl)
@@ -91,5 +98,7 @@ JavaScript模块加载器，基于[AMD](https://github.com/amdjs/amdjs-api/blob/
 - [ESL](https://github.com/ecomfe/esl)
 - [loader.js](https://github.com/ember-cli/loader.js)
 - [define.js](https://github.com/fixjs/define.js)
+
+###CMD
 - [CMD规范](https://github.com/cmdjs/specification/blob/master/draft/module.md)
 - [seajs官网](http://seajs.org/docs/)
