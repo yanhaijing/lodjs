@@ -171,6 +171,8 @@ path是一个非常强大的功能，对于程序的可移植性非常有用，�
 
 	define(['lib/jquery'], function($){});
 
+**注意：**path中配置的相对路径是基于baseUrl。
+
 ##lodjs.loadjs
 
 可用来载入一个js文件，有如下参数:
@@ -193,6 +195,8 @@ option可支持如下属性：
 可用来请求一个已经加载完成的模块，这个方法对于在控制台调试非常有用，对于尚未加载的模块不会加载模块。
 
 	lodjs.require('my/shirt');
+
+**注意**：此处的相对路径相对于baseUrl。
 
 ##lodjs.version
 用来表示lodjs的版本。
