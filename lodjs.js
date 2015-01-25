@@ -17,6 +17,7 @@
     var cjsRequireRegExp = /[^.]\s*require\s*\(\s*["']([^'"\s]+)["']\s*\)/g;
     var interactiveScript = null;
     var currentlyAddingScript = null;
+    var curExecModName = null;
     var t = (new Date).getTime();
     
     var o = {};
@@ -204,7 +205,12 @@
         return ids.join('/');
     }
     function getDepUrl(id, url) {
-        return fixSuffix(getUrl(replacePath(id), url || o.baseUrl), 'js');
+        var pathId = replacePath(id);
+        //找到path 基于baseUrl
+        if (pathId !== id) {
+            url = o.baseUrl;
+        }
+        return fixSuffix(getUrl(pathId, url || o.baseUrl), 'js');
     }
     function getIdUrl(id){
         //没有id的情况
@@ -217,8 +223,8 @@
         }
         return fixSuffix(getUrl(id, o.baseUrl), 'js');
     }
-    function require(id) {
-        var url = getDepUrl(id, getCurSrc());
+    function require(id, url) {
+        var url = getDepUrl(id, url || curExecModName);
         return moduleMap[url] && moduleMap[url].exports;
     }
     function fixPath(path) {
@@ -256,8 +262,10 @@
         if (!params) {
             moduleMap[modName].exports = modMap[modName].callback;
         } else {
+            curExecModName = modName;
             //commonjs
             var exp = modMap[modName].callback.apply(null, params);
+            curExecModName = null;
             //amd和返回值的commonjs
             if (exp) {
                 moduleMap[modName].exports = exp;
@@ -368,7 +376,7 @@
         if (!isObj(option)) {
             option = {};
         }
-        option.baseUrl = option.baseUrl || getCurSrc() || o.baseUrl;
+        option.baseUrl = option.baseUrl || o.baseUrl;
 
         if (deps.length === 0) {
             callback();
