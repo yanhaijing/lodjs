@@ -1,5 +1,7 @@
 # [lodJS](https://github.com/yanhaijing/lodjs) [![release](https://img.shields.io/badge/release-v0.1.0-orange.svg)](https://github.com/yanhaijing/template.js/releases/tag/v0.1.0) [![license](http://img.shields.io/npm/l/express.svg)](https://github.com/yanhaijing/lodjs/blob/master/MIT-LICENSE.txt)
 
+[Chinese README](https://github.com/yanhaijing/lodjs/blob/master/README_CN.md) 
+
 The JavaScript module loader is based on [AMD] (https://github.com/amdjs/amdjs-api/blob/master/AMD.md). lodJS is the best implemented understanding of [AMD] (https://github.com/amdjs/amdjs-api/blob/master/AMD.md) up to now.
 
 ## Function Overview
